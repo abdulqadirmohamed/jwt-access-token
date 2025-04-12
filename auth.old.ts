@@ -19,27 +19,45 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
       },
       async authorize(credentials) {
-        if(credentials === null) return null;
-        let user = null;
+        if (credentials === null) return null;
+
+        try {
+          const res = await fetch("http://localhost:5000/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+          const data = await res.json();
+          console.log(data);
+        } catch (error) {
+          throw new Error(`Error: ${error}`);
+        }
+        
+        // let user = null;
 
         // validate credentials
-        const parsedCredentials = signInSchema.safeParse(credentials);
-        if (!parsedCredentials.success) {
-          console.error("Invalid credentials:", parsedCredentials.error.errors);
-          return null;
-        }
+        // const parsedCredentials = signInSchema.safeParse(credentials);
+        // if (!parsedCredentials.success) {
+        //   console.error("Invalid credentials:", parsedCredentials.error.errors);
+        //   return null;
+        // }
 
-        user = {
-          id: "1",
-          name: "John Doe",
-          email: "john@example.com",
-          role: "admin",
-        };
+        // user = {
+        //   id: "1",
+        //   name: "John Doe",
+        //   email: "john@example.com",
+        //   role: "admin",
+        // };
 
-        if (!user) {
-          console.log("User not found");
-          return null;
-        }
+        // if (!user) {
+        //   console.log("User not found");
+        //   return null;
+        // }
         return user;
       },
     }),

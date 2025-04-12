@@ -16,6 +16,9 @@ import { signInSchema } from "@/lib/zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { handleCredentialsSignin, handleGithubSignin } from "@/actions/auth.action";
+import { Button } from "@/components/ui/button";
+import { Github } from "lucide-react";
 
 const LoginForm = () => {
   const [globalError, setGlobalError] = useState<string>("");
@@ -29,12 +32,14 @@ const LoginForm = () => {
 
   const onSubmit = async (values: z.infer<typeof signInSchema>) => {
     try {
-        values.email = values.email.toLowerCase();
+      const result = await handleCredentialsSignin(values);
+      if (result?.message) {
+        setGlobalError(result.message);
+      }
     } catch (error) {
       console.log(error);
       setGlobalError("Invalid email");
       return;
-    
     }
   };
   return (
@@ -94,6 +99,12 @@ const LoginForm = () => {
           <span className="text-sm text-gray-500 text-center block my-2">
             or
           </span>
+          <form className="w-full" action={handleGithubSignin}>
+            <Button variant="outline" className="w-full" type="submit">
+              <Github className="h-4 w-4 mr-2" />
+              Sign in with GitHub
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>

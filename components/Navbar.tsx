@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { Button } from "./ui/button";
+import { handleSignOut } from "@/actions/auth.action";
 
 export default async function Navbar() {
   const session = await auth();
@@ -19,7 +20,7 @@ export default async function Navbar() {
             <Button variant="default">Sign In</Button>
           </Link>
         ) : (
-          <form action={''}>
+          <form action={handleSignOut}>
             <Button variant="default" type="submit">
               Sign Out
             </Button>
