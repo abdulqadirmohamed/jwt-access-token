@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { signInSchema } from "./lib/zod";
 import GitHub from "next-auth/providers/github";
+import { jwtDecode } from "jwt-decode";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -19,62 +20,73 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
       },
       async authorize(credentials) {
-        if(credentials === null) return null;
-        let user = null;
+        if (credentials === null) return null;
+        try {
+          const res = await fetch("http://localhost:5000/api/v1/auth/sign-in", {
+            method: "POST",
+            body: JSON.stringify({
+              emaail: credentials.email,
+              password: credentials.password,
+            }),
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+          if (!res.ok) {
+            throw new Error("Invalid credentials");
+          }
+          const parsedResponse = await res.json();
 
-        // validate credentials
-        const parsedCredentials = signInSchema.safeParse(credentials);
-        if (!parsedCredentials.success) {
-          console.error("Invalid credentials:", parsedCredentials.error.errors);
-          return null;
+          const accessToken = parsedResponse.accessToken;
+          const refressToken = parsedResponse.refreshToken;
+          const userInfo = parsedResponse.userInfo;
+
+          return {
+            accessToken,
+            refressToken,
+            email: userInfo.email,
+            name: userInfo.name,
+            role: userInfo.role,
+          }
+
+        } catch (error) {
+          throw new Error("Invalid credentials");
         }
-
-        user = {
-          id: "1",
-          name: "John Doe",
-          email: "john@example.com",
-          role: "admin",
-        };
-
-        if (!user) {
-          console.log("User not found");
-          return null;
-        }
-        return user;
       },
     }),
   ],
   callbacks: {
-    authorized({ request: { nextUrl }, auth }) {
-      const isLoggedIn = !!auth?.user;
-      const { pathname } = nextUrl;
-      const role = auth?.user.role || "user";
-      if (pathname.startsWith("/sign-in") && isLoggedIn) {
-        return Response.redirect(new URL("/", nextUrl));
-      }
-      if (pathname.startsWith("/page2") && role !== "admin") {
-        return Response.redirect(new URL("/", nextUrl));
-      }
-      return !!auth;
-    },
-    jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id as string;
-        token.role = user.role as string;
-      }
-      if (trigger === "update" && session) {
-        token = { ...token, ...session };
-      }
-      return token;
-    },
-    session({ session, token }) {
-      session.user.id = token.id;
-      session.user.role = token.role;
-      return session;
-    },
-  },
+    jwt: async ({ token, account, user }) => {
+      // user is only available the first time a user signs in authorized
+      console.log(`In jwt callback - Token is ${JSON.stringify(token)}`);
 
-  pages: {
-    signIn: "/sign-in",
+      if (account && user) {
+        console.log(
+          `In jwt callback - User is ${JSON.stringify(user)}`
+        );
+        console.log(
+          `In jwt callback - account is ${JSON.stringify(account)}`
+        );
+        return {
+          ...token,
+          accessToken: user.accessToken,
+          refreshToken: user.refreshToken,
+          user
+        };
+      }
+      
+      return token;
+
+    },
+    session: async ({ session, token }) => {
+      console.log(
+          `In session callback - Token is ${JSON.stringify(token)}`
+      );
+      if (token) {
+          session.accessToken = token.accessToken;
+          session.user = token.user as any;
+      }
+      return session;
   },
+  }
 });
